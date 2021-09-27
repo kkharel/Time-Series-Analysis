@@ -1,0 +1,447 @@
+---
+title: "Spectral Analysis Notes"
+author: "Kushal Kharel"
+date: "9/23/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Spectral analysis has been used in research to find periodicites that are hidden in time series data. It is also known as frequency domain analysis since we are working with frequencies. The basis for Spectral analysis is that any function can be descibed as a sum of periodic functions of different wavelengths(in space) or period(in time).
+
+Suppose we have a cosine curve defined by the equation below:
+
+$R \cos(2\pi ft + \phi$ ... (i) where,
+
+$R$ is the amplitude and is greater than zero, $f$ is the frequency and $\phi$ defines the phase of the curve.
+Since we have a curve repeating every $\frac{x}{f}$ time units, the term $\frac{x}{f}$ is the period of the curve. 
+
+Let us look at the plot of Cosine curves. 
+Suppose we have $1/f = 1/90$, $5 \frac{1}{f} = \frac{5}{90}$ and $10 \frac{1}{f} + 0.5 = \frac{10}{90} + 0.5$. 
+
+```{r}
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+t = 1:90
+cos1 = cos(2*pi*t*5/90)
+cos2 = cos(2*pi*(t*10/90+0.5))
+plot(t,cos1,type="o", ylab = "Cosines")
+lines(t ,cos2,lty="dotted",type="o", pch=5)
+```
+
+The above plot shows discrete-time cosine curves for two different frequencies from time 1 to 90.
+
+The linear combination of two cosine curve is given by the process $Y_t$,
+
+$Y_t = 2\cos(2\pi t \frac{5}{90}) + 3\cos[2\pi(t \frac{10}{90} + 0.5)]$
+
+```{r}
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+t = 1:90
+Y = 2*cos(2*pi*t*(5/90)) + 3*cos(2*pi*(t*(10/90) + 0.5))
+plot(t,Y,type="o",ylab=expression(Y[t]))
+```
+Since, $R$ and $\phi$ in given equation (i) is not represented linearly, it is not good for estimation. We need to reparameterize the equation as:
+
+$R\cos(2\pi f t + \phi) = A \cos(2\pi f t) + B\sin(2 \pi f t)$ 
+where,
+
+$R = \sqrt (A^2 + B^2)$,
+
+$\phi = a\tan(-B/A)$
+
+$A = R\cos(\phi)$, 
+
+$B = -R\sin(\phi)$
+
+Then, for a fixed frequency $f$, we can use $sin(2\pi f t)$ and $cos(2\pi f t$ as our predictor variables and fit $A's$ and $B's$ from the given data using OLS regression.
+
+Suppose if we have $m$ cosine curves with arbitrary frequency, amplitude, and phases then we can write the general expression in the form below:
+
+$Y_t = A_0 + \sum_{j = 1}^m [A_j \cos(2\pi f_jt) + B_j \sin(2\pi f_jt)]$, ...(ii)
+
+Note: For any series of any length $n$ can be fit perfectly by model (ii) by choosing $m = \frac{n}{2}$ if n is even and $m = \frac{(n-1)}{2}$ if n is odd. Then we will have $n$ parameters to estimate to fit series of length $n$.
+
+Now we discuss the Periodogram:
+
+A periodogram is the estimate of the spectral density of a signal. It is used to identify the dominant periods or frequencies of a time series.
+
+For odd sample sizes with $n=2k+1$, periodogram $I$ at frequency $f=j/n$ for $j=1,2,...,k$ is defined below:
+
+$I(\frac{j}{n}) = \frac{n}{2}(\hat A_j^2 + \hat B_j^2)$, ... (iii)
+
+For even sample sizes with $n=2k$,
+
+$\hat A_0 = \bar Y$
+
+The term $A_0$ is the coefficient of the cosine curve at zero frequency 
+
+$\hat A_j = \frac{2}{n} \sum_{t=1}^n Y_t cos(\frac {2 \pi tj}{n})$, and 
+
+$\hat B_j = \frac{2}{n} \sum_{t=1}^n Y_t sin(\frac {2 \pi tj}{n})$
+
+Note that the frequencies of the form $1/n, 2,n,...,k/n = 1/2 - 1/(2n)$ are called Fourier frequencies..
+
+Equation (iii) gives the periodogram for $j=1,2,...,k-1$. However, at the extreme frequency $f= k/n = 1/2$,
+
+$\hat A_k = \frac{1}{n} \sum_{t=1}^n (-1)^tY_t$, and $\hat B_k = 0$ applies and the periodogram is defined as,
+
+$I \frac{1}{2} = n(\hat A_k)^2$
+
+The height of the periodogram shows the relative strength of cosine-sine pairs at different frequencies of the given series.
+
+We can interpret periodogram $I(j/n)$ as the sum of squares with two degrees of freedom associated with the coefficient pair $A_j,B_j$ at frequency $j/n$. 
+
+Now, let us code up the Periodogram for Y.
+
+```{r}
+library(TSA)
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+periodogram(Y,log="no",plot=TRUE,ylab="Periodogram",xlab="Frequency") 
+abline(h=0) 
+axis(1, at = c(0.056,0.11))
+```
+
+The above plot shows the periodogram for the time series defined by,
+
+$Y_t = 2\cos(2\pi t \frac{5}{90}) + 3\cos[2\pi(t \frac{10}{90} + 0.5)]$.
+
+The height shows the relative strengths of two cosine-sine pairs and the frequencies $5/90$ and $10/90$ is shown in the graph axis.
+
+Now let us turn our focus to the series that contains white noise. Suppose the model is defined by the below from:
+
+$Y_t = A_1\cos(2\pi f_1t)+B_1\sin(2\pi f_1t)+A_2\cos(2\pi f_2t)+B_2\cos(2\pi f_2t)+W_t$
+
+We randomly select the frequencies,amplitudes and phases with white noise process.
+
+```{r}
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+set.seed(100)
+t=1:90 # time series of length 90
+integer = sample(40,2)
+freq1 = integer[1]/90     # freq1 and freq2 are choosen randomly
+freq2 = integer[2]/90
+A1 = rnorm(1,0,2) # selected independently from normal distribution with mean 0 and sd 2
+B1 = rnorm(1,0,2)
+A2 = rnorm(1,0,3) # selected independently from normal distribution with mean 0 and sd 3
+B2 = rnorm(1,0,3)
+w = 2*pi*t
+y = A1*cos(w*freq1) + B1*sin(w*freq1) + A2*cos(w*freq2) + B2*sin(w*freq2) + rnorm(90,0,1)
+plot(t,y,type="o",ylab=expression(y[t]))
+```
+From the above plot, we are not sure of the periodicities. So let us see the periodogram of above model.
+
+```{r}
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+periodogram(y)
+abline(h=0)
+```
+Now, we can clearly see that series contains two cosine-sine pairs at approximate frequencies 0.11 and 0.42 and both the frequencies components are similar in strength. The small spikes in the graph represents the white noise component.
+
+The Spectral Representation and Distribution:
+
+Let us consider the time series defined below:
+
+$Y_t = \sum_{j=1}^m [A_j \cos(2 \pi f_jt) + B_j \sin(2 \pi f_jt)]$
+
+where, $A_j$ and $B_j$ are independent normal random variables with zero means,
+
+$Var (A_j) = Var(B_j) = \sigma_j^2$,
+
+the frequencies $0<f_1<f_2<f_3<...<f_m< \frac{1}{2}$ are fixed.
+
+Then we can show that the process $\{Y_t\}$ is stationary with mean zero and 
+
+$\gamma_k = \sum_{j=1}^m \sigma_j^2 \cos(2\pi k f_j)$ and,
+
+$\gamma_0 = \sum_{j=1}^m \sigma_j^2$; the process variance $\gamma_0$ is the sum of the variances due to each component at the various fixed frequencies.
+
+If for $0<f< \frac{1}{2}$, we define two random step functions by,
+
+$a(f) = \sum_{\{j|f_j \le f\}} A_j$, and $b(f) =\sum_{\{j|f_j \le f\}} B_j$ where,
+
+$a(f)$ and $b(f)$ are zero-mean stochastic processes indexed by frequency on $0<f< \frac{1}{2}$, each with uncorrelated increments(orthogonal increments), and the increments of $a(f)$ are uncorrelated with increments of $b(f)$.
+
+Finally, we can write the process $\{Y_t\}$ as,
+
+$Y_t = \int_0^{\frac {1}{2}} \cos(2\pi f t)da(f) + \int_0^{\frac {1}{2}} \sin(2\pi f t)db(f)$
+
+and,
+
+$Var(\int_{f_1}^{f_2} da(f) = Var(\int_{f_1}^{f_2})db(f) = F(f_2) - F(f_1)$
+
+Properties of spectral distribution function:
+
+1) $F$ is nondecreasing
+
+2) $F$ is right continuous
+
+3) $F(f) \ge 0$ for all f
+
+4) $\lim_{f \to 1/2} F(f) = Var(Y_t) = \gamma_0$
+
+
+Sample Spectral Density:
+
+In Fourier analysis, the sample spectral density is the (discrete-time) Fourier transform of the sample covariance function. From the theory, it follows that there is an inverse relationship,
+
+$\hat \gamma_k = \int_{-\frac{1}{2}}^{\frac{1}{2}} \hat S(f) \cos(2\pi f k)df$ where,
+
+$\hat \gamma_k$ is the sample or estimated covariance function and
+
+$\hat S(f)$ is the sample spectral density.
+
+We can see that the total area under the asmple spectral density is the sample variance of the time series.
+
+$\hat \gamma_0 = \int_{-\frac{1}{2}}^{\frac{1}{2}} \hat S(f)df = \frac{1}{n} \sum_{t=1}^n (Y_t - \bar Y)^2$
+
+The Spectral Density:
+
+The covariance functions decay rapidly with increasing lag for many processes that are stationary. If the covariance function $\gamma_k$ is absolutely summable then we define the population spectral density for $-1/2 < f <1/2$ as:
+
+$S(f) = \gamma_o + 2 \sum_{k=1}^ \infty \gamma_k \cos(2\pi fk)$
+
+and there is an inverse relationship given by,
+
+$\gamma_k = \int_{-1/2}^{1/2} S(f) \cos(2 \pi fk)df$ where,
+
+$S(f)$ is the (discrete-time) Fourier transform of the sequence $..., \gamma_{-2}, \gamma_{-1}, \gamma_0, \gamma_1, \gamma_2,...,$ and $\{\gamma_k\}$ is the inverse Fourier transform of the spectral density $S(f)$ defined on $-1/2<f \le 1/2$
+
+Note: A spectral density has all the mathematical properties of pdf o interval $(-1/2,1/2]$ with the exception that total area is $\gamma_0$ rather than 1. We can show that,
+
+$F(f) = \int _o^f S(x)dx$ for $0 \le f \le 1/2$ which means that the area under the spectral density between frequencies $f_1$ and $f_2$ with $0 \le f \le 1/2$ is the portion of the variance that is attributable to cosine-sine pairs in that interval that compose the process.
+
+
+Time- Invariant Linear Filters:
+
+A linear filter is just a linear operation on the space of time series.A time-invariant linear filter is a sequence of absolutely summable constants $...,c_{-1},c_0,c_1,c_2,...$. If $\{X_t\}$ is a time series then we can use these constant to filter $\{X_t\}$ to produce new series $\{Y_t\}$ by:
+
+$Y_t = \sum_{j= -\infty}^ \infty c_jX_{t-j}$
+
+If $c_k = 0$ for $k < 0$ then the filter is causal.In this case, the filtering at time $t$ involves only present ans past data values and analysis can be done in "real time".
+
+Suppose $S_X(f)$ is the spectral density of the process $\{X_t\}$, $S_Y(f)$ is the spectral density of the process $\{Y_t\}$ and $C(e^{-2\pi if}) = \sum_{j=-\infty}^\infty c_je^{-2\pi i fj}$. Then,
+
+$Cov(Y_t, Y_{t-k}) = \int_{-\frac{1}{2}}^{\frac{1}{2}} |C(e^{-2\pi if})|^2S_X(f)e^{2\pi ifk}df$
+
+But,
+
+$Cov(Y_t, Y_{t-k}) = \int_{-\frac{1}{2}}^{\frac{1}{2}} S_Y(f)e^{2\pi ifk}df$
+
+Hence,
+
+$S_Y(f) = |C(e^{-2\pi if})|^2S_X(f)$, helps us find the form of the spectral densities for ARMA processes. 
+
+The function $|C(e^{-2\pi if})|^2$ is the (power) transfer function of the filter.
+
+Spectral Densities for ARMA Processes:
+
+Note: All frequencies receive equal weight in the spectral representation of white noise.
+
+MA(1) Spectral Density:
+
+MA(1) is a simple filtering of white noise with $c_0 = 1$ and $c_1 = -\theta$. So,
+
+$C(e^{-2\pi if})^2 = (1-\theta e^{2\pi if})(1-\theta e^{-2\pi if}) = 1 + \theta^2 - \theta(e^{2\pi if }+e^{-2\pi if}) = 1+ \theta^2 - 2\theta \cos(2\pi f)$
+
+Hence,
+
+$S(f) = [1 + \theta^2 - 2\theta \cos(2\pi f)]\sigma_e^2$
+
+When $\theta >0$, above spectral density is an increasing function of non-negative frequency, and
+when $\theta < 0$, the function decreases.
+
+Let us see the plot of spectral density for an MA(1) process with theta = 0.8. Since spectral densities are symmetric about zero frequency, we only plot the positive frequencies.
+
+```{r}
+# Spectral Density of MA(1) Process with theta = 0.8
+library(TSA)
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+theta=0.8
+ARMAspec(model=list(ma=-theta),plot = TRUE)
+```
+From the above plot, we see that desity is much stronger for higher frequencies than low frequencies. It also shows that at lag 1, we have relatively large negative correlation but all other correlations are zero. We can say that moving average suppresess the lower-frequency components of the white noise process.
+
+Now let us plot the spectral density for an MA(1) process with $\theta = -0.9$.
+
+```{r}
+win.graph(width = 4.875, height = 2.5, pointsize=8)
+theta=-0.9
+ARMAspec(model=list(ma=-theta),plot = TRUE)
+```
+From this plot, we can see that there is positive correlation at lag 1 with all other correlations zero. The process tends to change slowly from one time instance to the next. The density is much stronger for lower frequencies than higher frequencies.
+
+Now, let us see the MA(2) spectral density. The sprectral density for MA(2) model is given by;
+
+$S(f) = [1+ \theta_1^2 + \theta_2^2 - 2 \theta_1(1-\theta_2) \cos(2\pi f) - 2 \theta_2 \cos(4\pi f)]\sigma_e^2$
+
+```{r}
+theta1 = 1
+theta2 = -0.7
+ARMAspec(model=list(ma=-c(theta1,theta2)))
+```
+We can see from the graph above the MA process with order 2 shows that smaller densities occurs from frequencies between 0.1 and 0.2 and there is very little below 0.1. Higher frequencies enter gradually with the strongest periodic components at the highest frequencies.
+
+Now let us turn our focus to AR model. To find density for AR models, we use below equation backwards meaning that white noise process is a linear filtering of the AR process,
+
+$S_Y(f) = |C(e^{-2\pi if})|^2S_X(f)$
+
+We know that theeoretical spectral density for white noise process is constant for all frequencies in $-\frac{1}{2}<f \le \frac{1}{2}$. So, 
+
+$S(f) = \sigma_e^2$
+
+We know that spectral density of MA(1) series is given by,
+
+$S(f) = [1 + \theta^2 - 2\theta \cos(2\pi f)]\sigma_e^2$
+
+which gives,
+
+$\sigma_e^2 = [1 + \phi^2 - 2\phi cos(2\pi f)]S(f)$
+
+Hence,
+
+$S(f) = \frac{\sigma_e^2}{[1 + \phi^2 - 2\phi \cos(2\pi f)]}$
+
+Let us plot the above spectral density for AR(1) process with $\phi = 0.8$
+
+```{r}
+phi = 0.8
+ARMAspec(model=list(ar=phi))
+```
+
+We can see that this spectral density is a decreasing function of frequency $\phi >0$.
+
+Now, lets see the plot for $\phi = -0.8$
+
+```{r}
+phi = -0.8
+ARMAspec(model=list(ar=phi))
+```
+
+
+We can see that this spectral density increases for $\phi <0$.
+
+Lets check the spectral density for AR(2) process. Note that we can use $S_Y(f) = |C(e^{-2\pi if})|^2S_X(f)$ backwrds with MA(2), $S(f) = [1+ \theta_1^2 + \theta_2^2 - 2 \theta_1(1-\theta_2) \cos(2\pi f) - 2 \theta_2 \cos(4\pi f)]\sigma_e^2$ to obtain
+
+$S(f) = \frac{\sigma_e^2}{1+ \phi_1^2 + \phi_2^2 - 2 \phi_1(1-\phi_2) \cos(2\pi f) - 2 \phi_2 \cos(4\pi f)}$
+
+Let us plot spectral density of AR(2) process with $\phi_1=1.0$ and $\phi_2 = -0.50$
+
+```{r}
+phi1 = 1
+phi2 = -0.50
+ARMAspec(model=list(ar=c(phi1,phi2)))
+```
+
+Note that the spectral density for AR(2) model can vary depending on the actual values of $\phi$. We can determine different spectral shapes for AR(2) spectrum by the inequality given below:
+
+$|\phi_1(1-\phi_2)| <|4\phi_2|$
+
+Also note that Jenkins and Watts showed that the frequency $f_0$ at which peak or trough occurs satisfies,
+
+$\cos(2\pi f_0) = -\frac{\phi_1 (1-\phi_2)}{4 \phi_2}$
+
+By combining MA(1) and AR(1) models, we can obtain ARMA(1,1) spectral density as:
+
+$S(f) = \frac{1+ \theta^2 - 2 \theta \cos(2 \pi f)}{1 + \phi^2 - 2 \phi \cos(2 \pi f)} \sigma_e^2$
+
+Let us see the spectral density plot for ARMA(1,1) process with $\phi = 0.6$ and $\theta = 0.7$
+
+```{r}
+phi = 0.6
+theta = 0.8
+ARMAspec(model = list(ar=phi,ma=-theta))
+```
+For the general ARMA(p,q), the spectral density can be expressed in terms of AR and MA characteristic polynomials as:
+
+$S(f) = |\frac{\theta (e^{-2 \pi if})}{\phi (e^{-2 \pi if})}| \sigma_e^2$
+
+Seasonal ARMA Processes:
+
+Consider a seasonal AR model;
+
+$(1-\phi B)(1- \Phi B^{12})Y_t = e_t$
+
+We obtain the spectral density;
+
+$S(f) = \frac{\sigma_e^2}{[1+ \phi^2 - 2\phi \cos(2 \pi f)][1 + \Phi^2 - 2 \Phi \cos(2\pi 12f)]}$
+
+Let us look at the plot of this with values $\phi = 0.6, \Phi=0.8$ and $s = 12$
+
+```{r}
+phi = 0.6
+PHI = 0.8
+ARMAspec(model=list(ar=phi,seasonal=list(sar=PHI,period=12)))
+```
+We can see the seasonality in the plot by examining the spikes of decreasing magnitude at frequencies 0,1/12,2/12,3/12,4/12,5/12 and 6/12
+
+Now let us look at another seasonal MA process defined by the model;
+
+$Y_t = (1- \theta B)(1 - \Psi B^{12})e_t$
+
+The spectral density of above model is given by;
+
+$S(f) = [1+\theta^2-2\theta\cos(2\pi f)][1 + \Psi^2 - 2\Psi\cos(2\pi 12f)]\sigma_e^2$
+
+Let us examine the Spectral density of Seasonal MA plot with parameter values $\theta=0.5, \Psi = 0.8$ and $s=12$.
+
+```{r}
+theta = 0.5
+psi = 0.8
+ARMAspec(model=list(ma=-theta, seasonal = list(sma=-psi, period=12)))
+```
+
+Sampling Properties of the Sample Spectral Density:
+
+Suppose we have a time seies $\{Y_t\}$ with normal white noise with zero mean and variance $\gamma_0$. We know that,
+
+$\hat A_f = \frac{2}{n} \sum_{t=1}^n Y_t \cos(2\pi tf)$ and 
+
+$\hat B_f = \frac{2}{n} \sum_{t=1}^n Y_t \sin(2\pi tf)$
+
+Furthermore, consider only nonzero Fourier frequencies $f = \frac{j}{n} < \frac{1}{2}$.
+
+From the orthogonal properties of cosines and sines we find that $\hat A_f, \hat B_f$ have zero mean with variance $2\gamma _0/n$ and are uncorrelated and hence independent.
+
+Let us plot Sample Spectral Density for Simulated AR(1) Process below for sample size $n=200$, $\phi = -0.5$:
+
+```{r}
+win.graph(width=4.875, height=2.5,pointsize = 8)
+set.seed(100)
+n=200
+phi = -0.5
+y = arima.sim(model=list(ar=phi),n=n)
+sp=spec(y,log="no",xlab="Frequency",ylab="Sample Spectral Density",sub="")
+lines(sp$freq,ARMAspec(model=list(ar=phi), freq = sp$freq,plot=F)$spec,lty="dotted")
+abline(h=0)
+```
+
+In the above plot, the smooth dotted line is the theoretical spectral density and the solid line is the sample spectral density. We can see that sample spectral density is extremely variable from one frequency to the next even if the sample size is 200. It is not an acceptable estimate of the theoretical spectrum for the given process.
+
+We know that the square of a standard normal has a chi-square distribution with one degree of freedom and the sum of independent chi-square variables is chi-square distributed with degrees of freedom added together.
+
+Since $S(f) = \gamma_0$, 
+
+$\frac{n}{2\gamma_0}[\hat A_f^2 + \hat B_f^2] = \frac{2\hat S(f)}{S(f)}$, has a chi-square distribution with two degrees of freedom.
+
+We know that chi-square variable has a mean equal to its degrees of freedom and a variance eqal twice its degrees of freedom. Hence,
+
+$\hat S(f_1)$ and $\hat S(f_2)$ are independent for $f_1 \not = f_2$,
+
+$E[\hat S(f)] = S(f)$; sample spectral density is an unbiased estimator of theoretical spectral density and 
+
+$Var[\hat S(f)] = S^2(f)$; variance does not depend on sample size
+
+
+General results:
+
+Suppose $\{Y_t\}$ is any linear process given by,
+
+$Y_t = e_t + \psi_1e_{t-1} + \psi_2e_{t-2}+...$,
+
+where $e's$ are i.i.d with mean zero and common variance. Further suppose $\psi$ coefficients are absolutely summable and let $f_1 \not = f_2$ be any frequencies in 0 to 1/2. Then we can show that as the sample size increases without limit,
+
+$\frac{2\hat S(f_1)}{S(f_1)}$ and $\frac{2\hat S(f_2)}{S(f_2)}$ converge in distribution to independent chi-square random variables with two degrees of freedom for each.
+
+
